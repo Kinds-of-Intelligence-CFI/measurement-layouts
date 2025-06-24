@@ -1,0 +1,14 @@
+animalai==5.0.1
+cloudpickle==3.1.0
+fastcore==1.8.4
+filelock==3.16.1
+grpcio==1.48.2
+gym==0.26.2
+gym-notices==0.0.8
+mlagents-envs==1.1.0
+numpy==1.23.5
+pettingzoo==1.15.0
+pillow==11.0.0
+protobuf==3.20.3
+pyyaml==6.0.2
+six==1.16.0

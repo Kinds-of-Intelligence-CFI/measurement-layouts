@@ -2,7 +2,7 @@
 #SBATCH --job-name=aai
 #SBATCH --output=../../logs/aai_%A_%a.out
 #SBATCH --error=../../logs/aai_%A_%a.err
-#SBATCH --array=1-1:1
+#SBATCH --array=1-60:1
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=k.voudouris@helmholtz-munich.de
 
@@ -34,6 +34,6 @@ echo "Running task with pixels: $current_pixel, noise: $current_noise"
 
 cd /lustre/groups/hcai/workspace/k.voudouris/measurement-layouts/basic_measurement_layout
 
-singularity exec --bind /lustre/groups/hcai/workspace/k.voudouris/measurement-layouts/basic_measurement_layout:/mnt --nv --env SSL_CERT_DIR=/etc/ssl/certs/ animalai-nogpu_latest.sif xvfb-run -a python3.10 heuristicAgentSimulation.py $current_pixel $current_noise "./configs/" "./data/results_pixels_${current_pixel}_noise_${current_noise}.csv" "./env/AAI" 555
+singularity exec --bind /lustre/groups/hcai/workspace/k.voudouris/measurement-layouts/basic_measurement_layout:/mnt --env SSL_CERT_DIR=/etc/ssl/certs/ animalai-nogpu_latest.sif xvfb-run -a python3.10 heuristicAgentSimulation.py $current_pixel $current_noise "./configs/" "./data/results_pixels_${current_pixel}_noise_${current_noise}.csv" "./env/animalAI.x86_64" 555
 
 echo "Task with model: $current_model completed"

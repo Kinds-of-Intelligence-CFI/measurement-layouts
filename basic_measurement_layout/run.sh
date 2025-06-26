@@ -18,25 +18,21 @@
 set -e
 
 # Define arrays for the parameter sweep
-# pixels=(4 8 12 16 20 24 28 32 36 40)
-# noise=(0.0 0.1 0.2 0.3 0.4 0.5)
-pixels=(8 20 24)
-noise=(0.4 0.0 0.5)
+pixels=(4 8 12 16 20 24 28 32 36 40)
+noise=(0.0 0.1 0.2 0.3 0.4 0.5)
 
 # Calculate total combinations to select the correct parameters for this task
-# total_pixels=${#pixels[@]}
-# total_noise=${#noise[@]}
+total_pixels=${#pixels[@]}
+total_noise=${#noise[@]}
 
 # Calculate indices for this specific array task
 combo_index=$((SLURM_ARRAY_TASK_ID - 1))
-# pixel_index=$((combo_index / total_noise))
-# noise_index=$((combo_index % total_noise))
+pixel_index=$((combo_index / total_noise))
+noise_index=$((combo_index % total_noise))
 
 # Get the parameters for this run
-# current_pixel=${pixels[$pixel_index]}
-# current_noise=${noise[$noise_index]}
-current_pixel=${pixels[$combo_index]}
-current_noise=${noise[$combo_index]}
+current_pixel=${pixels[$pixel_index]}
+current_noise=${noise[$noise_index]}
 
 echo "Running task ${SLURM_ARRAY_TASK_ID} with pixels: $current_pixel, noise: $current_noise"
 

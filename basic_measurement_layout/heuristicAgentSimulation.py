@@ -6,6 +6,8 @@ import os
 import re
 import random
 
+from PIL import Image
+
 from fastcore.script import call_parse
 from animalai.environment import AnimalAIEnvironment
 from animalai.actions import AAIActions, AAIAction
@@ -14,15 +16,10 @@ class cameraBraitenberg():
     """Implements a simple Braitenberg vehicle agent that heads towards food"""
     def __init__(self):
         self.actions = AAIActions()
-        self.prev_action = self.actions.NOOP
-        self.GOODGOAL = np.array([0.7411765, 0.8784314, 0.5411765], dtype=np.float32)
-        self.GOODGOALMULTI = np.array([0.9607843,  0.8666667,  0.40784314], dtype=np.float32)
-        self.forwards_counter = 0
-        self.forwards_active = False
+        self.GOODGOAL = np.array([0.7372549, 0.8784314, 0.5411765], dtype=np.float32)
 
     def get_action_camera(self, obs) -> AAIAction:
         """Returns the action to take given the current visual observation"""
-        """Agent orientates towards good goal"""
         newAction = self.actions.LEFT
         if self.ahead(obs, self.GOODGOAL):
             newAction = self.actions.FORWARDS
@@ -37,7 +34,7 @@ class cameraBraitenberg():
 
     def ahead(self, obs, object):
         """Returns true if the input object is ahead of the agent"""
-        middle = obs[:, obs.shape[1]//2-1:obs.shape[1]//2+1, :].transpose((2,1,0))
+        middle = obs[:, obs.shape[1]//2-1:obs.shape[1]//2+1, :]
         if np.any(np.all(middle == object, axis=-1)):
             return True
         else:
@@ -45,7 +42,7 @@ class cameraBraitenberg():
 
     def left(self, obs, object):
         """Returns true if the input object is left of the agent"""
-        left_half = obs[:, :obs.shape[1]//2, :].transpose((2,1,0))
+        left_half = obs[:, :obs.shape[1]//2, :]
         if np.any(np.all(left_half == object, axis=-1)):
             return True
         else:
@@ -54,7 +51,7 @@ class cameraBraitenberg():
 
     def right(self, obs, object):
         """Returns true if the input object is right of the agent"""
-        right_half = obs[:, obs.shape[1]//2:, :].transpose((2,1,0))
+        right_half = obs[:, obs.shape[1]//2:, :]
         if np.any(np.all(right_half == object, axis=-1)):
             return True
         else:
@@ -64,7 +61,7 @@ def find_yaml_files(directory):
     yaml_files = []
     task_names = []
     
-    for root, dirnames, filenames in os.walk(directory):
+    for root, _, filenames in os.walk(directory):
         for filename in fnmatch.filter(filenames, '*.yml') + fnmatch.filter(filenames, '*.yaml'):
             yaml_files.append(os.path.join(root, filename))
             task_names.append(filename)
@@ -92,34 +89,33 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
                            config_folder: str, 
                            results_path: str, 
                            env_path: str,
-                           port_base: int = 1111, 
                            agent_inference: bool = True):
     
     random.seed(2025)
 
     yaml_files, task_names = find_yaml_files(config_folder)
 
-    
-    # now proceed with testing
-    yaml_index = 0
-
-    port = port_base + yaml_index
 
     for yaml, name in zip(yaml_files, task_names):
-        temp_port = port + yaml_index # increment through ports to prevent calling the same socket.
-        aai_env = AnimalAIEnvironment( 
-                inference=agent_inference, #Set true when watching the agent
-                seed = 2023,
-                worker_id=temp_port,
-                file_name=env_path,
-                arenas_configurations=yaml,
-                base_port=temp_port,
-                useCamera=True,
-                useRayCasts = False,
-                resolution = pixelInput,
-                no_graphics=False,
-                timescale = 1 if agent_inference else 300,
-            )
+        aai_env = None
+        while aai_env is None:
+            try:
+                port = random.randint(1000, 20000)
+                aai_env = AnimalAIEnvironment( 
+                        inference=agent_inference, #Set true when watching the agent
+                        seed = 2023,
+                        worker_id=port,
+                        file_name=env_path,
+                        arenas_configurations=yaml,
+                        base_port=port,
+                        useCamera=True,
+                        useRayCasts = False,
+                        resolution = pixelInput,
+                        no_graphics=False,
+                        timescale = 1 if agent_inference else 300,
+                    )
+            except:
+                pass
         
         behavior = list(aai_env.behavior_specs.keys())[0] # by default should be AnimalAI?team=0
 
@@ -139,6 +135,8 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
     
         while not done:
             observations = aai_env.get_obs_dict(dec.obs)["camera"]
+            
+            observations = np.transpose(observations, (1, 2, 0))
 
             agent_action = agent.get_action_camera(observations)
 
@@ -168,12 +166,14 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
             csv_write = csv.writer(csv_file)
             if not file_exists:
                 csv_write.writerow(['agent', 'pixelInput', 'navigationNoise', 'episode', 'x_value', 'z_value', 'distance', 'size', 'finalReward'])
+                csv_file.flush()
                 
             x, z, size = regex_value_finder(str(name))
 
             distance = math.sqrt((abs(x-20))**2 + (abs(z-0.5))**2)
             agent_name = f"Agent_{str(pixelInput)}"
             csv_write.writerow([str(agent_name), pixelInput, randomness, str(name), x, z, distance, size, episodeReward[0]])
+            csv_file.flush()
         aai_env.close()
 
 
@@ -183,7 +183,6 @@ def main(pixelInput: int,
          config_folder: str, 
          results_path: str, 
          env_path: str,
-         port_base: int,
         ):
     agent_all = cameraBraitenberg()
     
@@ -193,7 +192,6 @@ def main(pixelInput: int,
                            config_folder=config_folder, 
                            results_path=results_path, 
                            env_path=env_path,
-                           port_base=port_base,
                            agent_inference=False)
     
     print(f"Finished running Braitenberg agent with pixel input {pixelInput} and randomness {randomness}. Results stored in {results_path}.")

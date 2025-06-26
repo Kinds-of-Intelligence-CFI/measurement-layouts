@@ -195,3 +195,6 @@ cython_debug/
 
 # Apple
 *.DS_Store
+
+# Docker/Singularity
+*.sif

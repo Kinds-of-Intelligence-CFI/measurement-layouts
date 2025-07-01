@@ -2,7 +2,7 @@
 #SBATCH --job-name=aai
 #SBATCH --output=../../logs/aai/aai_%A_%a.out
 #SBATCH --error=../../logs/aai/aai_%A_%a.err
-#SBATCH --array=1-3:1
+#SBATCH --array=1-4:1
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=k.voudouris@helmholtz-munich.de
 
@@ -11,28 +11,32 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=80G
 #SBATCH --nodes=1
-#SBATCH --time=3:00:00
+#SBATCH --time=4:30:00
 #SBATCH --nice=10000
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
 # Define arrays for the parameter sweep
-pixels=(4 8 12 16 20 24 28 32 36 40)
-noise=(0.0 0.1 0.2 0.3 0.4 0.5)
+# pixels=(4 8 12 16 20 24 28 32 36 40)
+# noise=(0.0 0.2 0.4 0.6 0.8)
+pixels=(4 8 16 20)
+noise=(0.8 0.6 0.6 0.6)
 
 # Calculate total combinations to select the correct parameters for this task
-total_pixels=${#pixels[@]}
-total_noise=${#noise[@]}
+# total_pixels=${#pixels[@]}
+# total_noise=${#noise[@]}
 
 # Calculate indices for this specific array task
 combo_index=$((SLURM_ARRAY_TASK_ID - 1))
-pixel_index=$((combo_index / total_noise))
-noise_index=$((combo_index % total_noise))
+# pixel_index=$((combo_index / total_noise))
+# noise_index=$((combo_index % total_noise))
 
 # Get the parameters for this run
-current_pixel=${pixels[$pixel_index]}
-current_noise=${noise[$noise_index]}
+# current_pixel=${pixels[$pixel_index]}
+# current_noise=${noise[$noise_index]}
+current_pixel=${pixels[$combo_index]}
+current_noise=${noise[$combo_index]}
 
 echo "Running task ${SLURM_ARRAY_TASK_ID} with pixels: $current_pixel, noise: $current_noise"
 

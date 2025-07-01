@@ -140,8 +140,8 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
 
             agent_action = agent.get_action_camera(observations)
 
-            action = random.choices([agent_action, agent.actions.LEFT, agent.actions.RIGHT], 
-                                    weights=[1 - randomness, randomness / 2, randomness / 2], k=1)[0]
+            action = random.choices([agent_action, agent.actions.BACKWARDSLEFT, agent.actions.BACKWARDSRIGHT, agent.actions.NOOP], 
+                                    weights=[1 - randomness, randomness / 3, randomness / 3, randomness / 3], k=1)[0]
 
             aai_env.set_actions(behavior, action.action_tuple)
 

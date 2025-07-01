@@ -46,7 +46,8 @@ def load_and_analyze_data(folder_path="."):
     pixels_summary = pixels_summary.reset_index()
     
     # Calculate pass rates by noise
-    noise_summary = combined_df[combined_df['pixelInput'] == 40].groupby('navigationNoise').agg({
+    # noise_summary = combined_df[combined_df['pixelInput'] == 40].groupby('navigationNoise').agg({
+    noise_summary = combined_df.groupby('navigationNoise').agg({
         'passed': ['sum', 'count']
     }).round(4)
     noise_summary.columns = ['passes', 'total_tests']

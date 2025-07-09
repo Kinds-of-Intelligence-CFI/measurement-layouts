@@ -130,9 +130,9 @@ def create_performance_grid(df, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Chart saved to: {save_path}")
         
-    plt.show()
+    # plt.show()
     
-    return fig
+    # return fig
 
 def create_performance_heatmap(df, save_path=None):
     """
@@ -166,14 +166,133 @@ def create_performance_heatmap(df, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Heatmap saved to: {save_path}")
         
-    plt.show()
+    # plt.show()
     
-    return plt.gcf() # Return the current figure
+    # return plt.gcf() # Return the current figure
+
+def create_brier_score_plot(save_path=None):
+    # Load the CSV data into a pandas DataFrame
+    df = pd.read_csv("measurement_layout_results.csv")
+
+    # Define the x and y data for plotting
+    x_data = df['meanSuccessAll']
+    y_model_brier = df['modelBrier']
+    y_agg_brier = df['aggBrier']
+
+    # Create the plot
+    plt.figure(figsize=(8, 6)) # Set figure size for better readability
+
+    # Plot 'Model' Brier scores
+    plt.scatter(x_data, y_model_brier, label='Model', color='tab:blue', zorder=2)
+
+    # Plot 'Aggregate' Brier scores
+    plt.scatter(x_data, y_agg_brier, label='Aggregate', color='tab:orange', zorder=2)
+
+    # Generate y-values for the trend line using the polynomial function
+    # Use a denser range of x-values for a smooth curve
+    x_trend = np.linspace(0, 1, 500)
+    y_expected_brier = x_trend * (1 - x_trend)
+
+    # Plot the theoretical Brier score trend line
+    plt.plot(x_trend, y_expected_brier, color='orange', linestyle='--', label='_nolegend_', zorder=1)
+
+    # Add labels and title
+    plt.xlabel('Success Rate')
+    plt.ylabel('Brier Score')
+    plt.title('Brier Score vs. Success Rate')
+
+    # Add a legend to distinguish the data series
+    plt.legend()
+
+    plt.grid(False)
+
+    # Set x and y axis limits as requested
+    plt.xlim(0, 1)
+    plt.ylim(0, 0.25)
+
+    # Display the plot
+    # plt.show()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    # return plt.gcf() # Return the current figure
+
+def create_ability_plot(save_path=None):
+    # Load the CSV data into a pandas DataFrame
+    df = pd.read_csv("measurement_layout_results.csv")
+
+    # Define the data for plotting
+    x_mean = df['navigationMean']
+    y_mean = df['visualAcuityMean']
+    x_std = df['navigationStd']
+    y_std = df['visualAcuityStd']
+    
+    size_data = df['noise'] * 200 
+    color_data = df['pixels'] 
+    # Create the plot
+    plt.figure(figsize=(10, 8)) # Set figure size for better readability
+
+    # Plot the error bars (grey lines for standard deviations)
+    # Iterate through each row to plot individual error bars
+    for i in range(len(df)):
+        plt.errorbar(
+            x_mean.iloc[i],
+            y_mean.iloc[i],
+            xerr=x_std.iloc[i], # Horizontal error bar
+            yerr=y_std.iloc[i], # Vertical error bar
+            fmt='o', # Format of the central point (we'll draw the actual dots separately)
+            ecolor='lightgray', # Color of the error bars
+            elinewidth=1.0, # Width of the error bar lines
+            capsize=0, # No caps on the error bars
+            alpha=0.7, # Transparency of the error bars
+            zorder=1 # Ensure error bars are behind the scatter points
+        )
+
+    # Plot the scatter points (each dot representing an agent)
+    # 'cmap' defines the colormap, 'coolwarm' goes from blue to red
+    # 'norm' can be used to normalize the color data if needed, but for now, let matplotlib handle it.
+    scatter = plt.scatter(
+        x_mean,
+        y_mean,
+        c=color_data, # Color based on 'meanSuccessAll'
+        cmap='coolwarm', # Colormap for the dots
+        s=size_data, # Size of the dots
+        edgecolors=None, # Black outline for dots
+        linewidths=0.5, # Line width of the outline
+        zorder=2 # Ensure scatter points are on top of error bars
+    )
+
+    # Add labels and title
+    plt.xlabel('Navigation Ability')
+    plt.ylabel('Visual Ability')
+    plt.title('Agent Abilities: Visual Acuity vs. Navigation')
+
+    # Add a colorbar to explain the color mapping
+    # cbar = plt.colorbar(scatter)
+    # cbar.set_label('Mean Success Across All Tests')
+
+    # Set x and y axis limits based on the example plot
+    plt.xlim(-0.1, 5.4) # Adjusted slightly to match the visual range of the example
+    plt.ylim(-0.1, 0.6) # Adjusted slightly to match the visual range of the example
+
+    # Remove grid lines for a cleaner look, similar to the example image
+    plt.grid(False)
+
+    # Display the plot
+    # plt.show()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
 # Main execution
 if __name__ == "__main__":
     # Set the folder path where your CSV files are located
     folder_path = "./data/"  # Change this to your folder path if different
+
+    create_brier_score_plot(save_path="figures/vision_agents_brier_score_plot.png")
+
+    create_ability_plot(save_path="figures/vision_agents_ability_plot.png")
     
     # Load and prepare data
     combined_data = load_and_prepare_data(folder_path)
@@ -182,16 +301,12 @@ if __name__ == "__main__":
         # Create and display the grid chart
         print("\nGenerating performance grid chart...")
         fig_grid = create_performance_grid(combined_data, 
-                                           save_path="agent_performance_grid.png")
+                                           save_path="figures/vision_agents_performance_grid.png")
         
         # Create and display the heatmap
         print("\nGenerating performance heatmap...")
         fig_heatmap = create_performance_heatmap(combined_data,
-                                                 save_path="agent_performance_heatmap.png")
+                                                 save_path="figures/vision_agents_performance_heatmap.png")
         
-        if fig_grid and fig_heatmap:
-            print("\nAnalysis complete! Both charts generated successfully.")
-        else:
-            print("Failed to generate one or both plots.")
     else:
         print("\nCould not analyze data. Please check that your CSV files are in the correct location and format.")

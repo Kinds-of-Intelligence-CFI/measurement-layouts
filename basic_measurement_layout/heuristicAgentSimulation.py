@@ -14,19 +14,20 @@ from animalai.actions import AAIActions, AAIAction
 
 class cameraBraitenberg():
     """Implements a simple Braitenberg vehicle agent that heads towards food"""
-    def __init__(self):
+    def __init__(self, random_action_rate):
         self.actions = AAIActions()
         self.GOODGOAL = np.array([0.7372549, 0.8784314, 0.5411765], dtype=np.float32)
+        self.random_action_rate = random_action_rate
 
     def get_action_camera(self, obs) -> AAIAction:
         """Returns the action to take given the current visual observation"""
         newAction = self.actions.LEFT
         if self.ahead(obs, self.GOODGOAL):
-            newAction = self.actions.FORWARDS
+            newAction = random.choices([self.actions.FORWARDS, self.actions.NOOP], weights=[1 - self.random_action_rate, self.random_action_rate], k=1)[0]
         elif self.left(obs, self.GOODGOAL):
-            newAction = self.actions.LEFT
+            newAction = random.choices([self.actions.LEFT, self.actions.NOOP], weights=[1 - self.random_action_rate, self.random_action_rate], k=1)[0]
         elif self.right(obs, self.GOODGOAL):
-            newAction = self.actions.RIGHT
+            newAction = random.choices([self.actions.RIGHT, self.actions.NOOP], weights=[1 - self.random_action_rate, self.random_action_rate], k=1)[0]
         else:
             newAction = self.actions.LEFT
         return newAction
@@ -84,8 +85,7 @@ def regex_value_finder(string):
         print("No match found.")
 
 def runBraitenbergAndStore(agent: cameraBraitenberg, 
-                           pixelInput: int, 
-                           randomness: float,
+                           pixel_input: int,
                            config_folder: str, 
                            results_path: str, 
                            env_path: str,
@@ -110,7 +110,7 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
                         base_port=port,
                         useCamera=True,
                         useRayCasts = False,
-                        resolution = pixelInput,
+                        resolution = pixel_input,
                         no_graphics=False,
                         timescale = 1 if agent_inference else 300,
                     )
@@ -138,10 +138,7 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
             
             observations = np.transpose(observations, (1, 2, 0))
 
-            agent_action = agent.get_action_camera(observations)
-
-            action = random.choices([agent_action, agent.actions.BACKWARDSLEFT, agent.actions.BACKWARDSRIGHT, agent.actions.NOOP], 
-                                    weights=[1 - randomness, randomness / 3, randomness / 3, randomness / 3], k=1)[0]
+            action = agent.get_action_camera(observations)
 
             aai_env.set_actions(behavior, action.action_tuple)
 
@@ -171,27 +168,26 @@ def runBraitenbergAndStore(agent: cameraBraitenberg,
             x, z, size = regex_value_finder(str(name))
 
             distance = math.sqrt((abs(x-20))**2 + (abs(z-0.5))**2)
-            agent_name = f"Agent_{str(pixelInput)}"
-            csv_write.writerow([str(agent_name), pixelInput, randomness, str(name), x, z, distance, size, episodeReward[0]])
+            agent_name = f"Agent_{str(pixel_input)}"
+            csv_write.writerow([str(agent_name), pixel_input, str(agent.random_action_rate), str(name), x, z, distance, size, episodeReward[0]])
             csv_file.flush()
         aai_env.close()
 
 
 @call_parse
-def main(pixelInput: int, 
+def main(pixel_input: int, 
          randomness: float,
          config_folder: str, 
          results_path: str, 
          env_path: str,
         ):
-    agent_all = cameraBraitenberg()
+    agent_all = cameraBraitenberg(random_action_rate = randomness)
     
     runBraitenbergAndStore(agent=agent_all,
-                           pixelInput=pixelInput, 
-                           randomness=randomness,
+                           pixel_input=pixel_input, 
                            config_folder=config_folder, 
                            results_path=results_path, 
                            env_path=env_path,
                            agent_inference=False)
     
-    print(f"Finished running Braitenberg agent with pixel input {pixelInput} and randomness {randomness}. Results stored in {results_path}.")
+    print(f"Finished running Braitenberg agent with pixel input {pixel_input} and randomness {randomness}. Results stored in {results_path}.")

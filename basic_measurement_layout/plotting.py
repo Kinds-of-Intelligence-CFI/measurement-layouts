@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
     create_brier_score_plot(save_path="figures/vision_agents_brier_score_plot.png")
 
-    create_ability_plot(save_path="figures/vision_agents_ability_plot.png")
+    # create_ability_plot(save_path="figures/vision_agents_ability_plot.png")
     
     # Load and prepare data
     combined_data = load_and_prepare_data(folder_path)

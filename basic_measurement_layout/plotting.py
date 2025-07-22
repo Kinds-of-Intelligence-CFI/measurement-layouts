@@ -3,18 +3,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import glob
 import os
+import seaborn as sns # Import seaborn for better heatmap visualization
 
-def load_and_analyze_data(folder_path="."):
+def load_and_prepare_data(folder_path="."):
     """
-    Load all CSV files matching the pattern and analyze agent performance
+    Load all CSV files matching the pattern and return a combined DataFrame.
     """
     # Pattern to match your files (accounting for decimal values in noise)
-    pattern = os.path.join(folder_path, "results_pixels_*_noise_*.*.csv")
+    # The pattern is adjusted to correctly capture the noise value, e.g., "noise_0.1.csv"
+    pattern = os.path.join(folder_path, "results_pixels_*_noise_*.csv")
     files = glob.glob(pattern)
     
     if not files:
         print(f"No files found matching pattern: {pattern}")
-        return None, None
+        return None
     
     print(f"Found {len(files)} files")
     
@@ -23,133 +25,288 @@ def load_and_analyze_data(folder_path="."):
     for file in files:
         try:
             df = pd.read_csv(file)
+            # Extract pixelInput and navigationNoise from the filename as a fallback
+            # This logic assumes filename format: results_pixels_X_noise_Y.Z.csv
+            if 'pixelInput' not in df.columns or 'navigationNoise' not in df.columns:
+                parts = os.path.basename(file).replace('.csv', '').split('_')
+                if len(parts) >= 5: # Ensure enough parts to extract info
+                    try:
+                        df['pixelInput'] = int(parts[2])
+                        # Handle noise which might be like '0.1', '1.0', etc.
+                        noise_str = parts[4]
+                        if len(parts) > 5: # If there's a decimal part like noise_0.1
+                            noise_str += '.' + parts[5]
+                        df['navigationNoise'] = float(noise_str)
+                    except ValueError as ve:
+                        print(f"Could not parse pixelInput or navigationNoise from {file}: {ve}")
+                        continue # Skip this file if parsing fails
+                else:
+                    print(f"Filename format unexpected for {file}. Skipping.")
+                    continue
             all_data.append(df)
         except Exception as e:
-            print(f"Error reading {file}: {e}")
+            print(f"Error reading or processing {file}: {e}")
     
     if not all_data:
         print("No data could be loaded")
-        return None, None
+        return None
     
     # Combine all data
     combined_df = pd.concat(all_data, ignore_index=True)
     
-    # Define pass condition (finalReward > -0.99)
+    # Define pass condition (finalReward > -0.99) for potential future use
     combined_df['passed'] = combined_df['finalReward'] > -0.99
     
-    # Calculate pass rates by pixels
-    pixels_summary = combined_df.groupby('pixelInput').agg({
-        'passed': ['sum', 'count']
-    }).round(4)
-    pixels_summary.columns = ['passes', 'total_tests']
-    pixels_summary['pass_rate'] = pixels_summary['passes'] / pixels_summary['total_tests']
-    pixels_summary = pixels_summary.reset_index()
-    
-    # Calculate pass rates by noise
-    # noise_summary = combined_df[combined_df['pixelInput'] == 40].groupby('navigationNoise').agg({
-    noise_summary = combined_df.groupby('navigationNoise').agg({
-        'passed': ['sum', 'count']
-    }).round(4)
-    noise_summary.columns = ['passes', 'total_tests']
-    noise_summary['pass_rate'] = noise_summary['passes'] / noise_summary['total_tests']
-    noise_summary = noise_summary.reset_index()
-    
-    return pixels_summary, noise_summary
+    return combined_df
 
-def create_subplot_charts(pixels_data, noise_data, save_path=None):
+def create_performance_grid(df, save_path=None):
     """
-    Create subplot with two bar charts
+    Create a grid of histograms showing the distribution of finalReward 
+    for each combination of pixelInput and navigationNoise.
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    if df is None or df.empty:
+        print("DataFrame is empty. Cannot create performance grid plot.")
+        return None
+
+    # Get unique sorted values for pixels and noise
+    pixel_levels = sorted(df['pixelInput'].unique())
+    noise_levels = sorted(df['navigationNoise'].unique())
     
-    # Plot 1: Pass rate by pixels
-    bars1 = ax1.bar(pixels_data['pixelInput'], pixels_data['pass_rate'], 
-                    color='steelblue', alpha=0.7, edgecolor='black', linewidth=0.5)
-    ax1.set_xlabel('Pixel Input', fontsize=12)
-    ax1.set_ylabel('Proportion of Tests Passed', fontsize=12)
-    ax1.set_title('Agent Performance by Pixel Input', fontsize=14, fontweight='bold')
-    ax1.set_ylim(0, 1)
-    ax1.grid(axis='y', alpha=0.3)
+    num_pixels = len(pixel_levels)
+    num_noise = len(noise_levels)
     
-    # Add value labels on bars
-    for bar, rate in zip(bars1, pixels_data['pass_rate']):
-        height = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                f'{rate:.3f}', ha='center', va='bottom', fontsize=9)
+    if num_pixels == 0 or num_noise == 0:
+        print("Not enough data diversity to create a grid.")
+        return None
+
+    # Create a grid of subplots
+    fig, axes = plt.subplots(num_pixels, num_noise, 
+                             figsize=(num_noise * 4, num_pixels * 3), 
+                             sharex=True, sharey=True)
     
-    # Set x-tick labels to show all pixel values
-    ax1.set_xticks(pixels_data['pixelInput'])
-    ax1.set_xticklabels(pixels_data['pixelInput'])
-    
-    # Plot 2: Pass rate by noise
-    # Create x positions for bars (use indices instead of actual noise values)
-    x_positions = range(len(noise_data))
-    bars2 = ax2.bar(x_positions, noise_data['pass_rate'], 
-                    color='coral', alpha=0.7, edgecolor='black', linewidth=0.5)
-    ax2.set_xlabel('Navigation Noise', fontsize=12)
-    ax2.set_ylabel('Proportion of Tests Passed', fontsize=12)
-    ax2.set_title('Agent Performance by Navigation Noise', fontsize=14, fontweight='bold')
-    ax2.set_ylim(0, 1)
-    ax2.grid(axis='y', alpha=0.3)
-    
-    # Add value labels on bars
-    for i, (bar, rate) in enumerate(zip(bars2, noise_data['pass_rate'])):
-        height = bar.get_height()
-        ax2.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                f'{rate:.3f}', ha='center', va='bottom', fontsize=9)
-    
-    # Set x-tick labels to show all noise values
-    ax2.set_xticks(x_positions)
-    ax2.set_xticklabels([f'{x:.1f}' for x in noise_data['navigationNoise']])
-    
-    plt.tight_layout()
+    # Flatten axes array for easier iteration if it's 1D
+    if num_pixels == 1 and num_noise == 1:
+        axes = np.array([[axes]]) # Make it 2D even for a single subplot
+    elif num_pixels == 1:
+        axes = np.atleast_2d(axes)
+    elif num_noise == 1:
+        axes = np.atleast_2d(axes).T # Transpose to get correct shape for single column
+
+    fig.suptitle('Agent Performance: Distribution of Final Rewards', fontsize=20, fontweight='bold')
+
+    for i, pixel in enumerate(pixel_levels):
+        for j, noise in enumerate(noise_levels):
+            ax = axes[i, j]
+            
+            # Filter data for the specific pixel and noise combination
+            subset = df[(df['pixelInput'] == pixel) & (df['navigationNoise'] == noise)]
+            
+            if not subset.empty:
+                # Create a histogram of finalReward
+                ax.hist(subset['finalReward'], bins=20, color='skyblue', edgecolor='black', alpha=0.7)
+                
+                # Add a vertical line for the mean reward
+                mean_reward = subset['finalReward'].mean()
+                ax.axvline(mean_reward, color='red', linestyle='--', linewidth=1.5, label=f'Mean: {mean_reward:.2f}')
+                ax.legend(fontsize='small')
+            else:
+                ax.text(0.5, 0.5, 'No Data', horizontalalignment='center', verticalalignment='center', 
+                        transform=ax.transAxes, fontsize=12, color='gray')
+
+            # Set titles for each subplot
+            ax.set_title(f'Pixels: {pixel}, Noise: {noise:.1f}', fontsize=10)
+            
+            # Set y-axis label only for the first column
+            if j == 0:
+                ax.set_ylabel('Frequency', fontsize=10)
+            
+            # Set x-axis label only for the last row
+            if i == num_pixels - 1:
+                ax.set_xlabel('Final Reward', fontsize=10)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96]) # Adjust layout to make room for subtitle
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Chart saved to: {save_path}")
+        
+    # plt.show()
     
-    plt.show()
-    
-    return fig
+    # return fig
 
-def print_summary_stats(pixels_data, noise_data):
+def create_performance_heatmap(df, save_path=None):
     """
-    Print summary statistics
+    Create a heatmap showing the average finalReward for each combination 
+    of pixelInput and navigationNoise.
     """
-    print("\n=== SUMMARY STATISTICS ===")
-    print("\nPass Rates by Pixel Input:")
-    print(pixels_data.to_string(index=False))
+    if df is None or df.empty:
+        print("DataFrame is empty. Cannot create heatmap.")
+        return None
+
+    # Calculate the average finalReward for each combination of pixelInput and navigationNoise
+    average_performance = df.groupby(['pixelInput', 'navigationNoise'])['finalReward'].mean().reset_index()
+
+    # Pivot the table to prepare data for the heatmap
+    # pixelInput will be rows (index), navigationNoise will be columns, values will be average finalReward
+    heatmap_data = average_performance.pivot(index='pixelInput', columns='navigationNoise', values='finalReward')
+
+    # Create the heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="viridis", linewidths=.5, cbar_kws={'label': 'Average Final Reward'})
     
-    print("\nPass Rates by Navigation Noise:")
-    print(noise_data.to_string(index=False))
+    plt.title('Average Agent Performance Heatmap', fontsize=16, fontweight='bold')
+    plt.xlabel('Navigation Noise', fontsize=12)
+    plt.ylabel('Pixel Input', fontsize=12)
+    plt.xticks(rotation=45, ha='right') # Rotate x-axis labels for better readability
+    plt.yticks(rotation=0) # Keep y-axis labels horizontal
     
-    print(f"\nOverall Statistics:")
-    print(f"Best performing pixel input: {pixels_data.loc[pixels_data['pass_rate'].idxmax(), 'pixelInput']} "
-          f"({pixels_data['pass_rate'].max():.3f} pass rate)")
-    print(f"Worst performing pixel input: {pixels_data.loc[pixels_data['pass_rate'].idxmin(), 'pixelInput']} "
-          f"({pixels_data['pass_rate'].min():.3f} pass rate)")
+    plt.tight_layout() # Adjust layout to prevent labels from overlapping
     
-    print(f"Best performing noise level: {noise_data.loc[noise_data['pass_rate'].idxmax(), 'navigationNoise']:.1f} "
-          f"({noise_data['pass_rate'].max():.3f} pass rate)")
-    print(f"Worst performing noise level: {noise_data.loc[noise_data['pass_rate'].idxmin(), 'navigationNoise']:.1f} "
-          f"({noise_data['pass_rate'].min():.3f} pass rate)")
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Heatmap saved to: {save_path}")
+        
+    # plt.show()
+    
+    # return plt.gcf() # Return the current figure
+
+def create_brier_score_plot(save_path=None):
+    # Load the CSV data into a pandas DataFrame
+    df = pd.read_csv("measurement_layout_results.csv")
+
+    # Define the x and y data for plotting
+    x_data = df['meanSuccessAll']
+    y_model_brier = df['modelBrier']
+    y_agg_brier = df['aggBrier']
+
+    # Create the plot
+    plt.figure(figsize=(8, 6)) # Set figure size for better readability
+
+    # Plot 'Model' Brier scores
+    plt.scatter(x_data, y_model_brier, label='Model', color='tab:blue', zorder=2)
+
+    # Plot 'Aggregate' Brier scores
+    plt.scatter(x_data, y_agg_brier, label='Aggregate', color='tab:orange', zorder=2)
+
+    # Generate y-values for the trend line using the polynomial function
+    # Use a denser range of x-values for a smooth curve
+    x_trend = np.linspace(0, 1, 500)
+    y_expected_brier = x_trend * (1 - x_trend)
+
+    # Plot the theoretical Brier score trend line
+    plt.plot(x_trend, y_expected_brier, color='orange', linestyle='--', label='_nolegend_', zorder=1)
+
+    # Add labels and title
+    plt.xlabel('Success Rate')
+    plt.ylabel('Brier Score')
+    plt.title('Brier Score vs. Success Rate')
+
+    # Add a legend to distinguish the data series
+    plt.legend()
+
+    plt.grid(False)
+
+    # Set x and y axis limits as requested
+    plt.xlim(0, 1)
+    plt.ylim(0, 0.25)
+
+    # Display the plot
+    # plt.show()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    # return plt.gcf() # Return the current figure
+
+def create_ability_plot(save_path=None):
+    # Load the CSV data into a pandas DataFrame
+    df = pd.read_csv("measurement_layout_results.csv")
+
+    # Define the data for plotting
+    x_mean = df['navigationMean']
+    y_mean = df['visualAcuityMean']
+    x_std = df['navigationStd']
+    y_std = df['visualAcuityStd']
+    
+    size_data = df['noise'] * 200 
+    color_data = df['pixels'] 
+    # Create the plot
+    plt.figure(figsize=(10, 8)) # Set figure size for better readability
+
+    # Plot the error bars (grey lines for standard deviations)
+    # Iterate through each row to plot individual error bars
+    for i in range(len(df)):
+        plt.errorbar(
+            x_mean.iloc[i],
+            y_mean.iloc[i],
+            xerr=x_std.iloc[i], # Horizontal error bar
+            yerr=y_std.iloc[i], # Vertical error bar
+            fmt='o', # Format of the central point (we'll draw the actual dots separately)
+            ecolor='lightgray', # Color of the error bars
+            elinewidth=1.0, # Width of the error bar lines
+            capsize=0, # No caps on the error bars
+            alpha=0.7, # Transparency of the error bars
+            zorder=1 # Ensure error bars are behind the scatter points
+        )
+
+    # Plot the scatter points (each dot representing an agent)
+    # 'cmap' defines the colormap, 'coolwarm' goes from blue to red
+    # 'norm' can be used to normalize the color data if needed, but for now, let matplotlib handle it.
+    scatter = plt.scatter(
+        x_mean,
+        y_mean,
+        c=color_data, # Color based on 'meanSuccessAll'
+        cmap='coolwarm', # Colormap for the dots
+        s=size_data, # Size of the dots
+        edgecolors=None, # Black outline for dots
+        linewidths=0.5, # Line width of the outline
+        zorder=2 # Ensure scatter points are on top of error bars
+    )
+
+    # Add labels and title
+    plt.xlabel('Navigation Ability')
+    plt.ylabel('Visual Ability')
+    plt.title('Agent Abilities: Visual Acuity vs. Navigation')
+
+    # Add a colorbar to explain the color mapping
+    # cbar = plt.colorbar(scatter)
+    # cbar.set_label('Mean Success Across All Tests')
+
+    # Set x and y axis limits based on the example plot
+    plt.xlim(-0.1, 5.4) # Adjusted slightly to match the visual range of the example
+    plt.ylim(-0.1, 0.6) # Adjusted slightly to match the visual range of the example
+
+    # Remove grid lines for a cleaner look, similar to the example image
+    plt.grid(False)
+
+    # Display the plot
+    # plt.show()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
 # Main execution
 if __name__ == "__main__":
     # Set the folder path where your CSV files are located
     folder_path = "./data/"  # Change this to your folder path if different
+
+    create_brier_score_plot(save_path="figures/vision_agents_brier_score_plot.png")
+
+    create_ability_plot(save_path="figures/vision_agents_ability_plot.png")
     
-    # Load and analyze data
-    pixels_data, noise_data = load_and_analyze_data(folder_path)
+    # Load and prepare data
+    combined_data = load_and_prepare_data(folder_path)
     
-    if pixels_data is not None and noise_data is not None:
-        # Print summary statistics
-        print_summary_stats(pixels_data, noise_data)
+    if combined_data is not None:
+        # Create and display the grid chart
+        print("\nGenerating performance grid chart...")
+        fig_grid = create_performance_grid(combined_data, 
+                                           save_path="figures/vision_agents_performance_grid.png")
         
-        # Create and display the charts
-        fig = create_subplot_charts(pixels_data, noise_data, 
-                                  save_path="agent_performance_analysis.png")
+        # Create and display the heatmap
+        print("\nGenerating performance heatmap...")
+        fig_heatmap = create_performance_heatmap(combined_data,
+                                                 save_path="figures/vision_agents_performance_heatmap.png")
         
-        print("\nAnalysis complete!")
     else:
-        print("Could not analyze data. Please check that your CSV files are in the correct location.")
+        print("\nCould not analyze data. Please check that your CSV files are in the correct location and format.")

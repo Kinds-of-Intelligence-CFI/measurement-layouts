@@ -135,88 +135,58 @@ def create_performance_grid(df, save_path=None):
     # return fig
 
 def create_performance_heatmap(df, save_path=None):
-    """
-    Create a heatmap showing the average finalReward for each combination 
-    of pixelInput and navigationNoise.
-    """
     if df is None or df.empty:
         print("DataFrame is empty. Cannot create heatmap.")
         return None
 
-    # Calculate the average finalReward for each combination of pixelInput and navigationNoise
     average_performance = df.groupby(['pixelInput', 'navigationNoise'])['finalReward'].mean().reset_index()
-
-    # Pivot the table to prepare data for the heatmap
-    # pixelInput will be rows (index), navigationNoise will be columns, values will be average finalReward
     heatmap_data = average_performance.pivot(index='pixelInput', columns='navigationNoise', values='finalReward')
 
-    # Create the heatmap
     plt.figure(figsize=(10, 8))
-    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="viridis", linewidths=.5, cbar_kws={'label': 'Average Final Reward'})
-    
-    plt.title('Average Agent Performance Heatmap', fontsize=16, fontweight='bold')
-    plt.xlabel('Navigation Noise', fontsize=12)
-    plt.ylabel('Pixel Input', fontsize=12)
-    plt.xticks(rotation=45, ha='right') # Rotate x-axis labels for better readability
-    plt.yticks(rotation=0) # Keep y-axis labels horizontal
-    
-    plt.tight_layout() # Adjust layout to prevent labels from overlapping
-    
+    sns.heatmap(
+        heatmap_data, annot=True, fmt=".2f", cmap="viridis", linewidths=.5,
+        cbar_kws={'label': 'Average Final Reward'}, annot_kws={"fontsize": 12}
+    )
+
+    plt.title('Average Agent Performance Heatmap', fontsize=18, fontweight='bold')
+    plt.xlabel('Navigation Noise', fontsize=14)
+    plt.ylabel('Pixel Input', fontsize=14)
+    plt.xticks(rotation=45, ha='right', fontsize=12)
+    plt.yticks(rotation=0, fontsize=12)
+
+    plt.tight_layout()
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Heatmap saved to: {save_path}")
-        
-    # plt.show()
-    
-    # return plt.gcf() # Return the current figure
 
 def create_brier_score_plot(save_path=None):
-    # Load the CSV data into a pandas DataFrame
     df = pd.read_csv("measurement_layout_results.csv")
-
-    # Define the x and y data for plotting
     x_data = df['meanSuccessAll']
     y_model_brier = df['modelBrier']
     y_agg_brier = df['aggBrier']
 
-    # Create the plot
-    plt.figure(figsize=(8, 6)) # Set figure size for better readability
-
-    # Plot 'Model' Brier scores
+    plt.figure(figsize=(8, 6))
     plt.scatter(x_data, y_model_brier, label='Model', color='tab:blue', zorder=2)
-
-    # Plot 'Aggregate' Brier scores
     plt.scatter(x_data, y_agg_brier, label='Aggregate', color='tab:orange', zorder=2)
 
-    # Generate y-values for the trend line using the polynomial function
-    # Use a denser range of x-values for a smooth curve
     x_trend = np.linspace(0, 1, 500)
     y_expected_brier = x_trend * (1 - x_trend)
-
-    # Plot the theoretical Brier score trend line
     plt.plot(x_trend, y_expected_brier, color='orange', linestyle='--', label='_nolegend_', zorder=1)
 
-    # Add labels and title
-    plt.xlabel('Success Rate')
-    plt.ylabel('Brier Score')
-    plt.title('Brier Score vs. Success Rate')
-
-    # Add a legend to distinguish the data series
-    plt.legend()
+    plt.xlabel('Success Rate', fontsize=14)
+    plt.ylabel('Brier Score', fontsize=14)
+    plt.title('Brier Score vs. Success Rate', fontsize=18)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12)
 
     plt.grid(False)
-
-    # Set x and y axis limits as requested
     plt.xlim(0, 1)
     plt.ylim(0, 0.25)
 
-    # Display the plot
-    # plt.show()
-
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    
-    # return plt.gcf() # Return the current figure
+
 
 def create_ability_plot(save_path=None):
     # Load the CSV data into a pandas DataFrame

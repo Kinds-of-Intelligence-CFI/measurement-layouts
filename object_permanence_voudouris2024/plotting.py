@@ -8,8 +8,18 @@ try:
 except ImportError:
     adjust_text = None
 
+plt.rcParams.update({
+    'font.size': 20,       # Default text size
+    'axes.titlesize': 20,  # Subplot title
+    'axes.labelsize': 20,  # X and Y labels
+    'xtick.labelsize': 20, # X tick labels
+    'ytick.labelsize': 20, # Y tick labels
+    'legend.fontsize': 20, # Legend
+    'figure.titlesize': 20 # Figure suptitle
+})
 
-def create_brier_score_plot(save_path=None):
+
+def create_brier_score_plot(save_path=None, annotate=False):
     # Load the CSV data into a pandas DataFrame
     df = pd.read_csv("AgentResultsAblated.csv")
 
@@ -32,7 +42,7 @@ def create_brier_score_plot(save_path=None):
     fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
 
     # Stylistic parameters for label boxes
-    bbox_props = dict(boxstyle='round,pad=0.3', fc='white', alpha=0.8)
+    bbox_props = dict(boxstyle='round,pad=0.3', fc='white', alpha=0.8) if annotate else None
 
     # -------- Success panel --------
     ax = axes[0]
@@ -48,22 +58,23 @@ def create_brier_score_plot(save_path=None):
     ax.grid(False)
 
     # Add labels only for model points with rounded bounding boxes
-    texts = []
-    for xi, yi, label in zip(x_success, y_model_success, labels):
-        texts.append(ax.text(
-            xi, yi, label,
-            fontsize=8, ha='right', va='bottom', zorder=3,
-            bbox=bbox_props
-        ))
-    if adjust_text:
-        adjust_text(texts, 
-                    ax=ax, 
-                    arrowprops=dict(arrowstyle='-', color='gray', alpha=0.5, shrinkA=5),
-                    autoalign='y',
-                    force_text=(0, 0.5),
-                    expand_points=(1.5,1.5),
-                    expand_text=(1.05, 1.05),
-                    )
+    if annotate:
+        texts = []
+        for xi, yi, label in zip(x_success, y_model_success, labels):
+            texts.append(ax.text(
+                xi, yi, label,
+                fontsize=8, ha='right', va='bottom', zorder=3,
+                bbox=bbox_props
+            ))
+        if adjust_text:
+            adjust_text(texts, 
+                        ax=ax, 
+                        arrowprops=dict(arrowstyle='-', color='gray', alpha=0.5, shrinkA=5),
+                        autoalign='y',
+                        force_text=(0, 0.5),
+                        expand_points=(1.5,1.5),
+                        expand_text=(1.05, 1.05),
+                        )
         
     # -------- Choice panel --------
     ax = axes[1]
@@ -78,22 +89,23 @@ def create_brier_score_plot(save_path=None):
     ax.grid(False)
 
     # Add labels only for model points with rounded bounding boxes
-    texts = []
-    for xi, yi, label in zip(x_choice, y_model_choice, labels):
-        texts.append(ax.text(
-            xi, yi, label,
-            fontsize=8, ha='right', va='bottom', zorder=3,
-            bbox=bbox_props
-        ))
-    if adjust_text:
-        adjust_text(texts, 
-                    ax=ax, 
-                    arrowprops=dict(arrowstyle='-', color='gray', alpha=0.5, shrinkA=5),
-                    autoalign='y',
-                    force_text=(0, 0.5),
-                    expand_points=(1.5,1.5),
-                    expand_text=(1.05, 1.05),
-                    )
+    if annotate:
+        texts = []
+        for xi, yi, label in zip(x_choice, y_model_choice, labels):
+            texts.append(ax.text(
+                xi, yi, label,
+                fontsize=8, ha='right', va='bottom', zorder=3,
+                bbox=bbox_props
+            ))
+        if adjust_text:
+            adjust_text(texts, 
+                        ax=ax, 
+                        arrowprops=dict(arrowstyle='-', color='gray', alpha=0.5, shrinkA=5),
+                        autoalign='y',
+                        force_text=(0, 0.5),
+                        expand_points=(1.5,1.5),
+                        expand_text=(1.05, 1.05),
+                        )
     plt.tight_layout()
 
     if save_path:

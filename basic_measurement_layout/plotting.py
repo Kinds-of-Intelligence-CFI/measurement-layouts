@@ -5,6 +5,8 @@ import glob
 import os
 import seaborn as sns # Import seaborn for better heatmap visualization
 
+sns.set_context("talk", font_scale=1.4)
+
 def load_and_prepare_data(folder_path="."):
     """
     Load all CSV files matching the pattern and return a combined DataFrame.
@@ -144,15 +146,18 @@ def create_performance_heatmap(df, save_path=None):
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(
-        heatmap_data, annot=True, fmt=".2f", cmap="viridis", linewidths=.5,
-        cbar_kws={'label': 'Average Final Reward'}, annot_kws={"fontsize": 12}
+        heatmap_data,
+        annot=True, fmt=".2f",
+        cmap="viridis", linewidths=.5,
+        cbar_kws={'label': 'Average Final Reward'},
+        annot_kws={"fontsize": 16}   # numbers inside cells
     )
 
     plt.title('Average Agent Performance Heatmap', fontsize=18, fontweight='bold')
-    plt.xlabel('Navigation Noise', fontsize=14)
-    plt.ylabel('Pixel Input', fontsize=14)
-    plt.xticks(rotation=45, ha='right', fontsize=12)
-    plt.yticks(rotation=0, fontsize=12)
+    plt.xlabel('Navigation Noise', fontsize=18)
+    plt.ylabel('Pixel Input', fontsize=18)
+    plt.xticks(rotation=45, ha='right', fontsize=16)
+    plt.yticks(rotation=0, fontsize=16)
 
     plt.tight_layout()
     if save_path:
@@ -173,12 +178,12 @@ def create_brier_score_plot(save_path=None):
     y_expected_brier = x_trend * (1 - x_trend)
     plt.plot(x_trend, y_expected_brier, color='orange', linestyle='--', label='_nolegend_', zorder=1)
 
-    plt.xlabel('Success Rate', fontsize=14)
-    plt.ylabel('Brier Score', fontsize=14)
+    plt.xlabel('Success Rate', fontsize=16)
+    plt.ylabel('Brier Score', fontsize=16)
     plt.title('Brier Score vs. Success Rate', fontsize=18)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.legend(fontsize=12)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.legend(fontsize=14)
 
     plt.grid(False)
     plt.xlim(0, 1)

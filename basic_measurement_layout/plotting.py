@@ -260,6 +260,92 @@ def create_ability_plot(save_path=None):
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
+def create_sensitivity_plots(save_dir="figures"):
+    csv_path = "sensitivity_analysis_results.csv"
+    
+    if not os.path.exists(csv_path):
+        print(f"File {csv_path} not found. Cannot generate variance plots.")
+        return
+    
+    df = pd.read_csv(csv_path)
+    df['link_type'] = df['link_type'].replace('multiplicative', 'non-compensatory')
+    
+    # --- 1. Data Cleaning & Formatting ---
+    # Tidy up factor labels for better plotting
+    if 'link_type' in df.columns:
+        df['link_type'] = df['link_type'].astype(str).str.title() # "compensatory" -> "Compensatory"
+    
+    # Convert logistic_p to string so Seaborn treats it as a categorical hue, not a continuous number
+    if 'logistic_p' in df.columns:
+        df['logistic_p_label'] = df['logistic_p'].apply(lambda x: f"{x}")
+    
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+    
+    sns.set_style("whitegrid")
+    sns.set_context("talk", font_scale=1.1)
+    
+    # --- 2. Brier Score Plot ---
+    # Requirement: Box plot for modelBrier, dotted line for aggBrier
+    plt.figure(figsize=(7.5,10))
+    
+    # Plot the Model Brier distribution
+    ax = sns.boxplot(y='modelBrier', data=df, color='skyblue', width=0.4)
+    
+    # Calculate the aggregate brier baseline (assuming it's a benchmark constant)
+    # We take the mean here, but in your data, aggBrier appears constant (0.144375)
+    agg_baseline = df['aggBrier'].mean()
+    
+    # Add the dotted line
+    plt.axhline(y=agg_baseline, color='tab:orange', linestyle='--', linewidth=2.5, label=None)
+    
+    plt.title('Model Brier Scores vs Aggregate Baseline', fontweight='bold', pad=15)
+    plt.ylabel('Brier Score')
+    
+    plt.tight_layout()
+    save_path_brier = os.path.join(save_dir, "variance_brier_scores_combined.png")
+    plt.savefig(save_path_brier, dpi=300)
+    print(f"Saved {save_path_brier}")
+    plt.close()
+    
+    # --- 3. Mean and Std Plots ---
+    # Requirement: Factor out by compensation (x), logistic (hue), and prior (col)
+    
+    metrics = {
+        'navMean': 'Navigation Mean',
+        'navStd': 'Navigation Std Dev',
+        'visualMean': 'Visual Mean',
+        'visualStd': 'Visual Std Dev'
+    }
+    
+    for col_name, label in metrics.items():
+        # We use catplot to handle the 3rd dimension (Prior) as a column facet
+        g = sns.catplot(
+            data=df,
+            kind="box",
+            x="link_type",
+            y=col_name,
+            hue="logistic_p_label", # Logistic values as color
+            col="prior_type",       # Prior types as separate columns
+            palette="viridis",
+            height=6,
+            aspect=1,
+            legend_out=True
+        )
+        
+        # Tidy up the chart aesthetics
+        g.figure.subplots_adjust(top=0.85) # Make room for the main title
+        g.figure.suptitle(f'{label} by Compensation, Prior, and Logistic Value', fontweight='bold')
+        
+        g.set_axis_labels("Compensation Type", label)
+        g.legend.set_title("Logistic P")
+        g.set_titles("{col_name} Prior") # Renames the sub-plot titles
+        
+        save_path_metric = os.path.join(save_dir, f"variance_{col_name}.png")
+        plt.savefig(save_path_metric, dpi=300, bbox_inches='tight')
+        print(f"Saved {save_path_metric}")
+        plt.close()
+
 # Main execution
 if __name__ == "__main__":
     # Set the folder path where your CSV files are located
@@ -283,5 +369,10 @@ if __name__ == "__main__":
         fig_heatmap = create_performance_heatmap(combined_data,
                                                  save_path="figures/vision_agents_performance_heatmap.png")
         
+        
     else:
         print("\nCould not analyze data. Please check that your CSV files are in the correct location and format.")
+
+    # Generate the new variance analysis plots
+    print("\nGenerating variance analysis plots...")
+    create_sensitivity_plots(save_dir="figures/")
